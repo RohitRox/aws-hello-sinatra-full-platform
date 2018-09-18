@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS Codepipeline
+Parameters:
+  GitHubOwner:
+    Type: String
+    Description: Github username
+    Default: RohitRox
+  GitHubRepo:
+    Type: String
+    Description: Github repo name
+    Default: aws-hello-sinatra-full-platform
+  GitHubOAuthToken:
+    Type: String
+    Description: Github Token
+  GitHubRepoBranch:
+    Type: String
+    Description: Branch code pipelines should watch for changes on
+    Default: master
+Resources:
+  ArtifactStore:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+
+  CodeBuildDocker:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${AWS::StackName}-CodeBuild
+      Description: Docker build
+      Artifacts:
+        Type: CODEPIPELINE
+      ServiceRole: !ImportValue CodeBuildIAMRole
+      Source:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/docker:17.09.0
+        EnvironmentVariables:
+        - Name: REPOSITORY_URI
+          Value: !ImportValue ECRRepositoryUrl
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location: !Ref ArtifactStore
+        Type: S3
+      RoleArn: !ImportValue CodePipelineIAMRole
+      Stages:
+        - Name: GitPull
+          Actions:
+            - Name: Source
+              InputArtifacts: []
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: "1"
+                Provider: GitHub
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubRepoBranch
+                OAuthToken: !Ref GitHubOAuthToken
+              OutputArtifacts:
+              - Name: CodeSource
+        - Name: BuildCode
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: "1"
+                Provider: CodeBuild
+              InputArtifacts:
+              - Name: CodeSource
+              OutputArtifacts:
+              - Name: BuildArtifacts
+              Configuration:
+                ProjectName: !Ref CodeBuildDocker
+        - Name: SurePush
+          Actions:
+            - Name: Approve
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: "1"
+                Provider: Manual
+
+        - Name: ECSDeploy
+          Actions:
+            - Name: Deploy
+              RunOrder: 1
+              InputArtifacts:
+              - Name: BuildArtifacts
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: "1"
+                Provider: CloudFormation
+              Configuration:
+                StackName: HelloSinatraService
+                ActionMode: CREATE_UPDATE
+                RoleArn: !ImportValue CloudFormationIAMRole
+                Capabilities: CAPABILITY_NAMED_IAM
+                TemplatePath: BuildArtifacts::service-web.cfn.yaml
+                TemplateConfiguration: BuildArtifacts::parameters.json
+
+Outputs:
+  PipelineUrl:
+    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${CodePipeline}
+    Description: CodePipeline URL

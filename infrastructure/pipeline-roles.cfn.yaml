@@ -1,0 +1,160 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Roles for CodePipelines
+
+Resources:
+  CloudFormationIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['-', [!Ref 'AWS::StackName', 'CloudFormation']]
+      Path: /
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - cloudformation.amazonaws.com
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - iam:CreateRole
+            - iam:AttachRolePolicy
+            - iam:PutRolePolicy
+            - iam:PassRole
+            - iam:DetachRolePolicy
+            - iam:ListRolePolicies
+            - iam:GetRole
+            - iam:DeleteRolePolicy
+            - iam:UpdateRoleDescription
+            - iam:ListRoles
+            - iam:DeleteRole
+            - iam:GetRolePolicy
+            - iam:CreateInstanceProfile
+            - iam:AddRoleToInstanceProfile
+            - iam:DeleteInstanceProfile
+            - iam:GetInstanceProfile
+            - iam:ListInstanceProfiles
+            - iam:ListInstanceProfilesForRole
+            - iam:RemoveRoleFromInstanceProfile
+            Effect: Allow
+            Resource:
+            - !Sub "arn:aws:iam::*:role/${AWS::StackName}*"
+            - !Sub "arn:aws:iam::*:instance-profile/${AWS::StackName}*"
+          - Action:
+            - ssm:GetParameters
+            - s3:*
+            - ecs:*
+            - logs:*
+            - elasticloadbalancing:*
+            Effect: Allow
+            Resource: '*'
+          - Resource: "*"
+            Effect: Allow
+            Action:
+            - iam:PassRole
+        PolicyName: !Join ['-', [!Ref 'AWS::StackName', 'CloudFormationRolePolicy']]
+
+  CodeBuildIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['-', [!Ref 'AWS::StackName', 'CodeBuild']]
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+        - PolicyName: !Join ['-', [!Ref 'AWS::StackName', 'CodeBuildRolePolicy']]
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                  - codecommit:*
+                  - s3:*
+                  - ecr:*
+                Resource: '*'
+
+  CodePipelineIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['-', [!Ref 'AWS::StackName', 'CodePipeline']]
+      Path: /
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: codepipeline.amazonaws.com
+          Action: sts:AssumeRole
+          Sid: 1
+      Policies:
+        - PolicyName: !Join ['-', [!Ref 'AWS::StackName', 'CodePipelineRolePolicy']]
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:UploadArchive
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:CancelUploadArchive
+                  - codebuild:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - codedeploy:CreateDeployment
+                  - codedeploy:GetApplicationRevision
+                  - codedeploy:GetDeployment
+                  - codedeploy:GetDeploymentConfig
+                  - codedeploy:RegisterApplicationRevision
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:UpdateStack
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                - ecs:*
+                - cloudwatch:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                - iam:PassRole
+
+Outputs:
+  CodeBuildIAMRole:
+    Description: Code Build IAM Role
+    Value: !GetAtt 'CodeBuildIAMRole.Arn'
+    Export:
+      Name: 'CodeBuildIAMRole'
+  CodePipelineIAMRole:
+    Description: Code Pipeline IAM Role
+    Value: !GetAtt 'CodePipelineIAMRole.Arn'
+    Export:
+      Name: 'CodePipelineIAMRole'
+  CloudFormationIAMRole:
+    Description: Code Pipeline IAM Role
+    Value: !GetAtt 'CloudFormationIAMRole.Arn'
+    Export:
+      Name: 'CloudFormationIAMRole'
+

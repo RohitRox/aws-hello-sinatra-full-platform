@@ -1,0 +1,25 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "CODEBUILD_RESOLVED_SOURCE_VERSION is ${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+      - $(aws ecr get-login --no-include-email)
+      - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+      - echo "Current TAG is ${TAG}"
+  build:
+    commands:
+      - cd source
+      - echo "Building ${REPOSITORY_URI}:${TAG}"
+      - docker build --tag "${REPOSITORY_URI}:${TAG}" .
+      - echo "Pushing ${REPOSITORY_URI}:${TAG}"
+      - docker push "${REPOSITORY_URI}:${TAG}"
+      - cd ..
+  post_build:
+    commands:
+      - printf '{"Parameters":{"ECRImageTag":"%s"}}' $TAG > parameters.json
+artifacts:
+  files:
+    - parameters.json
+    - infrastructure/**/*
+  discard-paths: yes
