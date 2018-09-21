@@ -19,7 +19,7 @@ Resources:
       ExecutionRoleArn: !ImportValue ECSTaskExecutionRole
       ContainerDefinitions:
         - Name: hellosinatra_web
-          Image: !Join [':', [!ImportValue HelloSinatraWebRepositoryUrl, !Ref ECRImageTag]]
+          Image: !Join [':', [!ImportValue ECRRepositoryUrl, !Ref ECRImageTag]]
           Environment:
           - Name: RACK_ENV
             Value: production
