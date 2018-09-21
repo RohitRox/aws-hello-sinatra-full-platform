@@ -104,7 +104,7 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 RoleArn: !ImportValue CloudFormationIAMRole
                 Capabilities: CAPABILITY_NAMED_IAM
-                TemplatePath: BuildArtifacts::service-web.cfn.yaml
+                TemplatePath: BuildArtifacts::05_service-web.cfn.yaml
                 TemplateConfiguration: BuildArtifacts::parameters.json
 
 Outputs:
